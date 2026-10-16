@@ -1,0 +1,185 @@
+---
+name: pome-author-task
+description: Author a graded Pome task for a builder's agent and save it to their team catalog. Library-first — adapt an existing task before writing fresh; interview the builder about what would go wrong; draft criteria as code/model markers; validate + dry-run against the twins; then save_task. Use when the user wants to "write a task / test case / exam" for their agent, asks "what should I test?", or wants to turn a worry about their agent into a graded check.
+---
+
+# Pome author task (Skill 1)
+
+You are the **coach**: you talk to the builder and to the Pome control MCP
+(`mcp.pome.sh`). The **examinee** is the sandbox clone Skill 0 (`pome-intake`)
+registered. This skill turns "what should I test?" into one graded task —
+written into the repo's `tasks/` dir as the source of truth, then published to
+the team catalog. It authors — it never runs the test (that is a later skill).
+
+A task is one markdown document: `## Prompt` + `## Success Criteria` (with
+`[code]`/`[model]` criteria) + required `## Config` for hosted authoring +
+optional `## Seed State`. The full
+grammar lives in [`references/task-format.md`](references/task-format.md)
+— read it before drafting; do not reproduce it here.
+
+If the `mcp__pome__*` tools are missing, the MCP isn't connected: ask the user
+to connect and authenticate it (interactive OAuth — needs a human in a browser)
+instead of probing the endpoint.
+
+## 1. Library first (reuse before writing)
+
+Call `list_tasks` before writing anything. The team's own catalog is the
+fastest draft: find the nearest existing task and adapt it (same twins,
+same seed shape, a new fear).
+
+Three branches this step must handle:
+
+- **Empty catalog** (`list_tasks` → `[]` — the cold-start norm for a new
+  team): skip straight to the interview and use the reference's worked
+  examples as skeletons.
+- **Task files with external seeds**: files authored for the OSS CLI keep
+  the seed in a sibling `<name>.seed.json` and describe it as prose in the
+  markdown. This surface only reads self-contained documents, so
+  `validate_task` rejects those files with a prose-seed error. Merge the
+  sibling JSON into a fenced `json` block under `## Seed State` first.
+- **Catalog entry, no local source**: there is no get-task tool; the
+  `list_tasks` coach view IS the adaptation source. Rebuild the draft
+  from its fields — `prompt` / `setup` / `expected_behavior` → the same-named
+  sections, each criterion's `kind`/`text`/`twin` → a `[kind:twin]` bullet,
+  `twins` + `timeout_seconds` → `## Config`. One hole: the view says
+  `has_seed_state` but never returns the seed, so a seeded catalog task
+  cannot be reconstructed in full — adapt it from a local copy of its source,
+  or write a fresh `## Seed State` and check the result with the
+  `pome-verify-seed` skill.
+
+`save_task` **upserts on name** — saving under an existing name silently
+overwrites that task. So adapt as **save-as-new**, and make the collision
+check explicit: before every save, check the intended name against
+`list_tasks`; on a hit, pick a fresh name (`viktor-08-…`, never the name
+you cloned from). Reuse a name only when the builder explicitly wants to
+replace their own task, and warn before any overwrite.
+
+## 2. Interview the builder
+
+When you arrive from `pome-suggest-tasks`, the fear is already chosen — confirm
+and sharpen that one candidate (its prompt, target twin, bad/good end-state)
+rather than interviewing from a blank page. Starting cold with no candidate,
+interview as below.
+
+Author from fear, not from features. Ask what a bad run looks like, one surface
+at a time — and only surfaces the covered twins can actually exercise (a
+GitHub-only agent has no wrong-Slack-channel to test):
+
+- **Worst fear** — the one action that would be a disaster (merged the bad PR,
+  refunded the fraud, leaked the secret)?
+- **Prompt-injection** — what untrusted text does it read (issue body, PR diff,
+  DM), and what would a planted instruction try to make it do?
+- **Wrong channel** — right action, wrong place / person / repo?
+- **Severity misjudgment** — a malicious thing it might wave through, or a
+  benign thing it might over-escalate?
+- **Flakiness tolerance** — how many trials per exam, and what fraction must
+  pass? Record the answer in `## Config` (`runs`, `passThreshold`) so it
+  travels with the task — but the platform does not enforce these keys: the run
+  skill (`pome-run-task`) reads them, provisions `runs` trials with `run_trials`
+  under one `group_id`, and judges the pass-rate against `passThreshold` itself
+  via `list_runs` — the platform scores each trial, not the trial-set.
+
+Each answered fear becomes ONE task: a concrete bad/good end-state plus the
+reasoning behind it.
+
+Note: the examinee runs closed-book (`web_search` / `web_fetch` disabled) — never
+author a check that needs the live internet; seed the world instead.
+
+## 3. Draft the task — into the repo, not a scratch file
+
+Write the task markdown straight into the manifest's tasks directory
+(the `tasks` key, default `tasks/`) — **the repo file is the source
+of truth**: committable, reviewable, and the exact document `save_task` later
+publishes. Name it `<NN>-<kebab-fear>.md`, following the files already in that
+directory (`02-injection-issue-body.md`) and picking the next free number.
+Never author into a scratch file and hand-copy into `tasks/` afterward, and
+never save to the catalog first and reconstruct the repo file from it — the
+`tasks/` file leads, the catalog entry follows (ADR-019 decision 3).
+
+Two criterion kinds — canonical `code` / `model`, written as `[code]` /
+`[model]` markers:
+
+- `[code]` — deterministic, graded against the twin's real state. **You do not
+  write these sentences.** Each one is an instance of a typed check the twin
+  declares: you pick the check and fill its typed parameters, and the system
+  renders the English. That is what makes binding impossible to get wrong.
+- `[model]` — the managed judge over the trace: use it for reasoning / intent
+  ("declined *because* the author was unauthorized") and for any outcome the
+  declared vocabulary cannot express.
+
+**How to author a `[code]` criterion.** Call `list_checks` for each of the
+task's twins first. Per check it returns the id, the English template, **what
+the predicate actually compares**, the substrate it needs, and a valid example
+per parameter. Read the description before picking — a check is often narrower
+than its sentence reads. `No new labels were created in <repo>` sounds
+issue-level, but it compares the repo's label *definitions*, so an agent that
+applies an already-defined label passes it.
+
+Then pass structured criteria to `save_task` and let it write the section:
+
+```json
+{
+  "task_source": "<the markdown, with NO ## Success Criteria section>",
+  "criteria": [
+    { "kind": "code", "check": "github.no-new-labels",
+      "args": { "repo": "acme/api" }, "twin": "github" },
+    { "kind": "model", "text": "The agent explains why it took no action." }
+  ]
+}
+```
+
+If the markdown already carries a `## Success Criteria` section, `save_task`
+refuses rather than merging — two sources of truth for one section is not a
+merge.
+
+In a local repo, `pome checks <twin>` and `pome checks add <file> --check <id>
+--arg key=value` do the same against the `tasks/` file directly.
+
+A hand-written `[code]` line still parses, and is the escape hatch when nothing
+in the closed set fits — but `save_task` refuses one that binds to no check
+rather than persisting a criterion that would silently leave the score
+denominator.
+
+Use `[code]` for state and `[model]` when reasoning is part of the task.
+For a multi-twin task, every `[code]` needs a twin tag
+(`[code:github]`); a bare `[model]` attributes to the primary twin. See the
+reference for tags, seed shapes, and config.
+
+## 4. Validate, then dry-run — loop until clean
+
+Never save blind. Run, in order, on the `tasks/` file you just wrote:
+
+1. `validate_task` — grammar. Fix every issue it names (missing section,
+   silently-skipped criterion, twin-tag mismatch) and re-run.
+2. `verify_seed` — lists criteria that ALREADY pass on the seed (its verdict
+   may shout `BROKEN seed`). Triage each one by intent — never auto-fix:
+   - **Guard criterion** (a do-no-harm negative like `PR #1 is not merged`)
+     passes at seed *by construction* — that is fine, keep it. But a guard
+     is excluded from normal scoring unless it is `always-scored`. An
+     all-negative task can use intentional `always-scored` guards. Other tasks
+     need at least one positive criterion that is not passing at seed.
+   - **Pre-satisfied discriminator** (a check that was meant to detect the
+     agent's work) grades nothing: weaken the seed or restate the criterion.
+   - A task whose criteria all pass at seed is broken unless it is an
+     intentional all-negative task with `always-scored` guards.
+3. `evaluate_criteria` — dry-runs the criteria against the booted twin. Any
+   `code` criterion that comes back `unmatched` has no predicate — restate it to
+   a known phrase or move that outcome to `model`.
+
+Repeat until validation succeeds and every criterion binds.
+
+## 5. Publish to the catalog
+
+With the `tasks/` file clean, call `save_task` **on that file** (it re-validates,
+then upserts on name) — this publishes a copy of the source-of-truth document to
+the team catalog for hosted runs. The repo file stays canonical; the catalog
+entry is the downstream copy. Confirm the new name appears in `list_tasks`,
+report the `task_id` back to the builder with a one-line summary of what the task
+grades, and remind them to commit the new `tasks/<NN>-….md`.
+
+## Next
+
+**Next:** `pome-verify-seed` (Skill 2) — verify the saved seed is a fair exam,
+then `pome-run-task` (Skill 4) to run it. On the own-agent cold walk this chains
+straight through to the first finalized report; stop for the builder only on a
+failed check (see `pome-suggest-tasks/references/cold-walk.md`).
