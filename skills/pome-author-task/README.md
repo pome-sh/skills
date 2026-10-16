@@ -8,4 +8,4 @@ Adapt a relevant task when one exists. Use `pome checks <twin>` to inspect decla
 
 Run `pome checks lint <task-file>`. Validate the complete task and verify its seed before you save it to the team catalog.
 
-See [`task-format.md`](./references/task-format.md) for the grammar, hosted and local differences, and seed schemas.
+See [`task-format.md`](./references/task-format.md) for the grammar and seed schemas.

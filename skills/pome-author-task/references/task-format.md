@@ -1,12 +1,12 @@
 # Task format
 
-A Pome task is one Markdown file. The CLI parser in `cli/src/task/parseTask.ts` defines local parsing. Hosted authoring adds the requirements below.
+A Pome task is one Markdown file. The CLI and hosted authoring read it with the same parser, so a task that parses in one parses in the other.
 
 ## Use the format
 
 1. Create a Markdown file in the task directory from your Pome manifest.
 2. Add a prompt and at least one success criterion.
-3. For hosted authoring, add `## Config` and set `twins`.
+3. Add `## Config` and set `twins`.
 4. Add seed state only when the task needs a nondefault starting state.
 5. Run `pome checks lint <task-file>`.
 
@@ -30,7 +30,7 @@ The parser recognizes these level-two headings without case sensitivity:
 | `## Success Criteria` | `## Checks` | Yes | One or more graded criteria. |
 | `## Setup` | None | No | Hosted runs show this context to the examinee. The current local CLI does not send it. |
 | `## Expected Behavior` | None | No | Evaluator context. The runner does not send it to the agent. |
-| `## Config` | None | Hosted: Yes. Local CLI: No. | Task configuration. The local CLI uses GitHub defaults when absent. |
+| `## Config` | None | Yes | Task configuration. It must set `twins`. |
 | `## Seed State` | None | No | Initial twin state. Twin defaults apply when absent. |
 
 An unrecognized level-two section is ignored. A level-three heading remains inside its current section.
@@ -51,7 +51,7 @@ Write one criterion on each bullet line:
 The marker grammar is:
 
 ```
-/^[-*]\s+\[(code|model)(?::([a-z][a-z0-9_-]*))?(\s+always-scored)?\]\s+(.+)$/
+/^[-*]\s+\[(code|model)(?::([a-z][a-z0-9_-]*))?(\s+always-scored)?\]\s+(\S.*)$/
 ```
 
 Use lowercase `code` and `model`.
@@ -118,7 +118,7 @@ Do not add this keyword to hide an accidental pre-satisfied positive criterion. 
 
 ## Config
 
-Hosted authoring requires this section and an explicit `twins` value. The current local CLI can omit the section and default to GitHub.
+Every task requires this section and an explicit `twins` value. There is no default twin.
 
 Put configuration in a fenced YAML block:
 
@@ -132,7 +132,7 @@ passThreshold: 100
 
 | Key | Type | Default | Constraint |
 | --- | --- | --- | --- |
-| `twins` | String array | Local CLI: `["github"]`. Hosted authoring: none. | Use one or more mounted twin identifiers. |
+| `twins` | String array | None | Required. Use one or more mounted twin identifiers. |
 | `class` | String | None | `conformance`, `restraint`, or `adversarial`. |
 | `timeout` | Integer | `60` | Positive number of seconds. |
 | `runs` | Integer | `1` | Positive trial count. The hosted CLI uses at most 20 trials. |
@@ -225,9 +225,7 @@ Do not use an envelope for a single-twin task. Do not use a flat seed for a mult
 
 ## Current seed schemas
 
-Current local seed schemas reject unknown top-level keys and unknown keys in defined entity objects.
-
-Hosted Gmail and Linear seeds also reject unknown keys. The hosted GitHub, Slack, and Stripe parsers currently drop unknown keys. Check parsed collections after hosted validation so a misspelled key does not remove state.
+Seed schemas reject unknown top-level keys and unknown keys in defined entity objects. The CLI and hosted validation both parse a seed with the twin's own schema, so a seed that validates is a seed the twin boots.
 
 Explicit map and payload fields can accept arbitrary keys. Examples include Slack profiles and failure-response bodies.
 
