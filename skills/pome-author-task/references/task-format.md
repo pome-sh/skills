@@ -263,13 +263,14 @@ Channel names must use lowercase letters, digits, underscores, or hyphens. A mes
 Top-level fields:
 
 - `api_keys`
+- `clock`: an ISO 8601 date-time with an offset, the twin's starting time
 - `failure_injection`
 - `payment_intents`
 - `charges`
 - `refunds`
 - `balance_transactions`
 
-All fields have empty-array defaults. These are the only accepted top-level Stripe seed fields.
+Every list field defaults to an empty array, and `clock` is optional. These are the only accepted top-level Stripe seed fields.
 
 ### Gmail
 

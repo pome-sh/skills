@@ -26,7 +26,7 @@ Seeds and tapes can contain data you put there. Treat `.pome/`, `.pome-data/` an
 
 ## Credential handling
 
-The CLI stores team API keys in the macOS Keychain when it is available, and otherwise in `~/.pome/credentials.json` with mode `0600`. It never reads, sends or logs `ANTHROPIC_API_KEY` or another provider's key: your agent's own process reads those from its environment.
+The CLI stores team API keys in the macOS Keychain when it is available, and otherwise in `~/.pome/credentials.json` with mode `0600`. One command reads a provider's key: `pome compile-seeds` reads `ANTHROPIC_API_KEY` and calls Claude with it, billed to your account. No other command reads one, and the CLI never logs a provider's key or sends it anywhere but that provider: your agent's own process reads its keys from its environment.
 
 ## Supported versions
 

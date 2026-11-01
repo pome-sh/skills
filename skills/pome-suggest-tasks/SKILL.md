@@ -43,9 +43,11 @@ candidate is one bad end-state the agent could reach and the good one it should.
 Ground every candidate in something you actually read — a missing check in the
 prompt, a tool it holds, a surface it trusts — never a generic template.
 
-Reuse the bundled example tasks as skeletons: `agent-examples/*/tasks/*.md` (prefer
-same-twin ones) are the library-first adaptation source for a cold-start team
-with an empty catalog. When the MCP is connected, `list_tasks` shows the team
+Reuse the bundled tasks as skeletons: `pome tasks [twin]` lists the CLI's task
+library and `pome tasks <twin> --copy` writes them into `./tasks/`, and
+`pome init --example <id>` writes a whole example with its tasks (prefer
+same-twin ones). They are the library-first adaptation source for a cold-start
+team with an empty catalog. When the MCP is connected, `list_tasks` shows the team
 catalog too — adapt the nearest existing task before writing a fresh shape.
 
 Present each candidate as one line — **the fear · the twin · bad end-state vs
